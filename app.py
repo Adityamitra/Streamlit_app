@@ -73,6 +73,13 @@ def login():
     if st.button("Login"):
         if username == USERNAME and password == PASSWORD:
             st.session_state.authenticated = True
+            logging.info("User logged in.")
+            st.experimental_rerun()
+        else:
+            st.error("Invalid credentials.")
+            logging.warning("Failed login attempt.")
+        if username == USERNAME and password == PASSWORD:
+            st.session_state.authenticated = True
             st.success("Login successful!")
             logging.info("User logged in.")
         else:
@@ -80,6 +87,9 @@ def login():
             logging.warning("Failed login attempt.")
 
 def logout():
+    st.session_state.authenticated = False
+    logging.info("User logged out.")
+    st.experimental_rerun()
     st.session_state.authenticated = False
     st.success("Logged out.")
     logging.info("User logged out.")
@@ -96,8 +106,8 @@ pallets = load_data()
 
 # -------- Data Entry --------
 with st.expander("➕ Add Multiple Pallets"):
-    start_pallet = st.text_input("Enter Starting Pallet No (e.g., P001)")
-    num_pallets = st.number_input("How many pallets to add?", min_value=1, step=1)
+    start_pallet = st.text_input("Enter Starting Pallet No (e.g., P001)", key="start_pallet")
+    num_pallets = st.number_input("How many pallets to add?", min_value=1, step=1, key="num_pallets")
     location = st.selectbox("Location", ["SGT", "DKP", "OFC", "End Customer"], key="add_loc")
     status = st.selectbox("Status", ["Received At", "In Transit To", "Delivered", "Discarded"], key="add_stat")
 
@@ -132,13 +142,19 @@ with st.expander("➕ Add Multiple Pallets"):
                 if skipped:
                     st.warning(f"Skipped (already exists): {', '.join(skipped)}")
 
-            except ValueError:
+
+                # Clear form fields after successful addition
+                st.session_state["start_pallet"] = ""
+                st.session_state["num_pallets"] = 1
+                st.session_state["add_loc"] = "SGT"
+                st.session_state["add_stat"] = "Received At"
+                    except ValueError:
                 st.error("Invalid pallet number format. Must end with digits (e.g., P001).")
 
 
 # -------- Update Data --------
 with st.expander("🔄 Update Multiple Pallets"):
-    start_pallet = st.text_input("Enter Starting Pallet No to Update (e.g., P010)", key="update_start")
+    start_pallet = st.text_input("Enter Starting Pallet No (e.g., P001)", key="start_pallet")
     num_pallets = st.number_input("How many pallets to update?", min_value=1, step=1, key="update_count")
     new_location = st.selectbox("New Location", ["SGT", "DKP", "OFC", "End Customer"], key="update_loc")
     new_status = st.selectbox("New Status", ["Received At", "In Transit To", "Delivered", "Discarded"], key="update_stat")
@@ -170,7 +186,7 @@ with st.expander("🔄 Update Multiple Pallets"):
             st.error("Invalid starting pallet number format.")
 # -------- Discard Data --------
 with st.expander("🗑️ Discard Multiple Pallets"):
-    start_pallet = st.text_input("Enter Starting Pallet No to Discard (e.g., P050)", key="discard_start")
+    start_pallet = st.text_input("Enter Starting Pallet No (e.g., P001)", key="start_pallet")
     num_pallets = st.number_input("How many pallets to discard?", min_value=1, step=1, key="discard_count")
 
     if st.button("Discard Pallets"):
