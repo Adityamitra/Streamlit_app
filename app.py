@@ -78,13 +78,6 @@ def login():
         else:
             st.error("Invalid credentials.")
             logging.warning("Failed login attempt.")
-        if username == USERNAME and password == PASSWORD:
-            st.session_state.authenticated = True
-            st.success("Login successful!")
-            logging.info("User logged in.")
-        else:
-            st.error("Invalid credentials.")
-            logging.warning("Failed login attempt.")
 
 def logout():
     st.session_state.authenticated = False
@@ -142,15 +135,13 @@ with st.expander("➕ Add Multiple Pallets"):
                 if skipped:
                     st.warning(f"Skipped (already exists): {', '.join(skipped)}")
 
-
                 # Clear form fields after successful addition
                 st.session_state["start_pallet"] = ""
                 st.session_state["num_pallets"] = 1
                 st.session_state["add_loc"] = "SGT"
                 st.session_state["add_stat"] = "Received At"
-                    except ValueError:
+            except ValueError:
                 st.error("Invalid pallet number format. Must end with digits (e.g., P001).")
-
 
 # -------- Update Data --------
 with st.expander("🔄 Update Multiple Pallets"):
@@ -184,6 +175,7 @@ with st.expander("🔄 Update Multiple Pallets"):
 
         except ValueError:
             st.error("Invalid starting pallet number format.")
+
 # -------- Discard Data --------
 with st.expander("🗑️ Discard Multiple Pallets"):
     start_pallet = st.text_input("Enter Starting Pallet No (e.g., P001)", key="start_pallet")
@@ -228,53 +220,10 @@ with st.expander("🔍 Search Pallet"):
             st.write(found)
         else:
             st.error(f"Pallet {pallet_no} not found!")
+
+# -------- Show Pallet Status --------
 with st.expander("📍 Show Pallet Status"):
-    st.subheader("📊 Pallet Distribution by Location and Status")
-
-    # Count pallets grouped by location and status
-    loc_status_counts = pallets.groupby(['Location', 'Status']).size().reset_index(name='Count')
-
-    # Custom color mapping
-    color_map = {
-        "In Transit": "royalblue",
-        "Delivered": "green",
-        "Discarded": "red"
-    }
-
-    fig = px.bar(
-        loc_status_counts,
-        x="Location",
-        y="Count",
-        color="Status",
-        barmode="group",
-        color_discrete_map=color_map,
-        text="Count"
-    )
-
-    fig.update_layout(
-        xaxis_title="Location",
-        yaxis_title="Number of Pallets",
-        legend_title="Pallet Status",
-        title="Live Pallet Status by Location"
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
-
-# -------- Export to Excel --------
-with st.expander("💾 Export to Excel"):
-    if st.button("Export to Excel"):
-        export_path = st.text_input("Enter file path to save")
-        if export_path:
-            pallets.to_excel(export_path, index=False)
-            st.success(f"Data exported to {export_path}")
-
-# -------- Backup and Restore --------
-with st.expander("🔙 Restore Backup"):
-    if st.button("Restore Backup"):
-        pallets = restore_backup()
-        st.dataframe(pallets)
-
-# -------- Logout --------
-if st.button("Logout"):
-    logout()
-    st.stop()
+    st.subheader("📊 Pallet Status Distribution")
+    status_count = pallets["Status"].value_counts()
+    fig = px.pie(status_count, names=status_count.index, values=status_count.values, title="Pallet Status Distribution")
+    st.plotly_chart(fig)
