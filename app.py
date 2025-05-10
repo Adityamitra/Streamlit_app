@@ -74,7 +74,8 @@ def login():
         if username == USERNAME and password == PASSWORD:
             st.session_state.authenticated = True
             logging.info("User logged in.")
-            st.experimental_rerun()
+            st.success("Login successful!")
+            # No need for experimental_rerun here, as we rely on session state
         else:
             st.error("Invalid credentials.")
             logging.warning("Failed login attempt.")
@@ -82,15 +83,12 @@ def login():
 def logout():
     st.session_state.authenticated = False
     logging.info("User logged out.")
-    st.experimental_rerun()
-    st.session_state.authenticated = False
-    st.success("Logged out.")
-    logging.info("User logged out.")
+    st.success("Logged out successfully.")
 
 # -------- Main App --------
 if not st.session_state.authenticated:
     login()
-    st.stop()
+    st.stop()  # Stop further execution, display login form only if not authenticated
 
 st.title("📦 Pallet Tracker Dashboard")
 
