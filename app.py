@@ -7,15 +7,18 @@ import json
 import plotly.express as px
 
 # -------- Logging Setup --------
+
 logging.basicConfig(filename='app.log', level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
 # -------- Constants --------
+
 DATA_FILE = 'pallet_data.csv'
 BACKUP_FILE = 'pallet_data_backup.json'
 USERNAME = "admin"
 PASSWORD = "1234"
 
 # -------- Helper Functions --------
+
 def load_data():
     if not os.path.exists(DATA_FILE):
         return pd.DataFrame(columns=["Pallet_No", "Location", "Status", "Date"])
@@ -59,6 +62,7 @@ def check_duplicate(pallet_no, df):
     return pallet_no in df["Pallet_No"].values
 
 # -------- Session Auth --------
+
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
@@ -81,6 +85,7 @@ def logout():
     logging.info("User logged out.")
 
 # -------- Main App --------
+
 if not st.session_state.authenticated:
     login()
     st.stop()
@@ -88,12 +93,14 @@ if not st.session_state.authenticated:
 st.title("📦 Pallet Tracker Dashboard")
 
 # -------- Load Data --------
+
 pallets = load_data()
 
 # -------- Data Entry Section --------
+
 with st.expander("➕ Add Multiple Pallets"):
-    start_pallet = st.text_input("Enter Starting Pallet No (e.g., P001)", key="start_pallet")
-    num_pallets = st.number_input("How many pallets to add?", min_value=1, step=1, key="num_pallets_add")
+    start_pallet = st.text_input("Enter Starting Pallet No (e.g., P001)")
+    num_pallets = st.number_input("How many pallets to add?", min_value=1, step=1)
     location = st.selectbox("Location", ["SGT", "DKP", "OFC", "End Customer"], key="add_loc")
     status = st.selectbox("Status", ["Received At", "In Transit To", "Delivered", "Discarded"], key="add_stat")
 
@@ -129,6 +136,7 @@ with st.expander("➕ Add Multiple Pallets"):
                 st.error("Invalid pallet number format. Must end with digits (e.g., P001).")
 
 # -------- Update Pallets Section --------
+
 with st.expander("🔄 Update Multiple Pallets"):
     start_pallet = st.text_input("Enter Starting Pallet No to Update (e.g., P010)", key="update_start")
     num_pallets = st.number_input("How many pallets to update?", min_value=1, step=1, key="update_count")
@@ -159,6 +167,7 @@ with st.expander("🔄 Update Multiple Pallets"):
             st.error("Invalid starting pallet number format.")
 
 # -------- Discard Section --------
+
 with st.expander("🗑️ Discard Multiple Pallets"):
     start_pallet = st.text_input("Enter Starting Pallet No to Discard (e.g., P050)", key="discard_start")
     num_pallets = st.number_input("How many pallets to discard?", min_value=1, step=1, key="discard_count")
@@ -187,12 +196,14 @@ with st.expander("🗑️ Discard Multiple Pallets"):
             st.error("Invalid starting pallet number format.")
 
 # -------- View Pallets --------
+
 with st.expander("📋 View All Pallets"):
     st.dataframe(pallets)
 
 # -------- Search Pallet --------
+
 with st.expander("🔍 Search Pallet"):
-    pallet_no = st.text_input("Enter Pallet Number to Search", key="search_pallet")
+    pallet_no = st.text_input("Enter Pallet Number to Search")
     if st.button("Search Pallet"):
         found = pallets[pallets["Pallet_No"] == pallet_no]
         if not found.empty:
@@ -201,6 +212,7 @@ with st.expander("🔍 Search Pallet"):
             st.error(f"Pallet {pallet_no} not found!")
 
 # -------- Visualization --------
+
 with st.expander("📍 Show Pallet Status"):
     st.subheader("📊 Pallet Distribution by Location and Status")
     loc_status_counts = pallets.groupby(['Location', 'Status']).size().reset_index(name='Count')
@@ -216,8 +228,9 @@ with st.expander("📍 Show Pallet Status"):
     st.plotly_chart(fig, use_container_width=True)
 
 # -------- Export Section --------
+
 with st.expander("💾 Export to Excel"):
-    export_path = st.text_input("Enter file path to save (e.g., output.xlsx)", key="export_path")
+    export_path = st.text_input("Enter file path to save (e.g., output.xlsx)")
     if st.button("Export to Excel"):
         if export_path:
             try:
@@ -228,3 +241,9 @@ with st.expander("💾 Export to Excel"):
                 logging.error(f"Export failed: {e}")
         else:
             st.warning("Please enter a valid file path.")
+
+# -------- Logout Button --------
+
+if st.button("Logout"):
+    logout()
+    st.experimental_rerun()
