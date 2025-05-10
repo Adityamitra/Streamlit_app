@@ -7,8 +7,7 @@ import json
 import plotly.express as px
 
 # -------- Logging Setup --------
-logging.basicConfig(filename='app.log', level=logging.INFO,
-                    format='%(asctime)s %(levelname)s %(message)s')
+logging.basicConfig(filename='app.log', level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
 # -------- Constants --------
 DATA_FILE = 'pallet_data.csv'
@@ -37,9 +36,8 @@ def save_data(df):
 
 def create_backup(df):
     try:
-        pallets_dict = df.to_dict(orient='records')
         with open(BACKUP_FILE, 'w') as backup_file:
-            json.dump(pallets_dict, backup_file)
+            json.dump(df.to_dict(orient='records'), backup_file)
         logging.info("Backup created.")
     except Exception as e:
         logging.error(f"Error creating backup: {e}")
@@ -49,15 +47,13 @@ def restore_backup():
     if os.path.exists(BACKUP_FILE):
         try:
             with open(BACKUP_FILE, 'r') as backup_file:
-                pallet_data = json.load(backup_file)
-                return pd.DataFrame(pallet_data)
+                return pd.DataFrame(json.load(backup_file))
         except Exception as e:
             logging.error(f"Error restoring backup: {e}")
             st.error("Failed to restore backup.")
-            return pd.DataFrame(columns=["Pallet_No", "Location", "Status", "Date"])
     else:
         st.error("Backup file not found!")
-        return pd.DataFrame(columns=["Pallet_No", "Location", "Status", "Date"])
+    return pd.DataFrame(columns=["Pallet_No", "Location", "Status", "Date"])
 
 def check_duplicate(pallet_no, df):
     return pallet_no in df["Pallet_No"].values
@@ -73,32 +69,31 @@ def login():
     if st.button("Login"):
         if username == USERNAME and password == PASSWORD:
             st.session_state.authenticated = True
-            logging.info("User logged in.")
             st.success("Login successful!")
-            # No need for experimental_rerun here, as we rely on session state
+            logging.info("User logged in.")
         else:
             st.error("Invalid credentials.")
             logging.warning("Failed login attempt.")
 
 def logout():
     st.session_state.authenticated = False
+    st.success("Logged out.")
     logging.info("User logged out.")
-    st.success("Logged out successfully.")
 
 # -------- Main App --------
 if not st.session_state.authenticated:
     login()
-    st.stop()  # Stop further execution, display login form only if not authenticated
+    st.stop()
 
 st.title("📦 Pallet Tracker Dashboard")
 
 # -------- Load Data --------
 pallets = load_data()
 
-# -------- Data Entry --------
+# -------- Data Entry Section --------
 with st.expander("➕ Add Multiple Pallets"):
     start_pallet = st.text_input("Enter Starting Pallet No (e.g., P001)", key="start_pallet")
-    num_pallets = st.number_input("How many pallets to add?", min_value=1, step=1, key="num_pallets")
+    num_pallets = st.number_input("How many pallets to add?", min_value=1, step=1, key="num_pallets_add")
     location = st.selectbox("Location", ["SGT", "DKP", "OFC", "End Customer"], key="add_loc")
     status = st.selectbox("Status", ["Received At", "In Transit To", "Delivered", "Discarded"], key="add_stat")
 
@@ -110,19 +105,17 @@ with st.expander("➕ Add Multiple Pallets"):
             number = ''.join(filter(str.isdigit, start_pallet))
             try:
                 number = int(number)
-                added = []
-                skipped = []
+                added, skipped = [], []
 
                 for i in range(num_pallets):
                     new_pallet = f"{prefix}{str(number + i).zfill(len(str(number)))}"
                     if not check_duplicate(new_pallet, pallets):
-                        new_row = pd.DataFrame([{
+                        pallets = pd.concat([pallets, pd.DataFrame([{
                             "Pallet_No": new_pallet,
                             "Location": location,
                             "Status": status,
                             "Date": datetime.now().strftime("%Y-%m-%d")
-                        }])
-                        pallets = pd.concat([pallets, new_row], ignore_index=True)
+                        }])], ignore_index=True)
                         added.append(new_pallet)
                     else:
                         skipped.append(new_pallet)
@@ -132,18 +125,12 @@ with st.expander("➕ Add Multiple Pallets"):
                 st.success(f"Added Pallets: {', '.join(added)}")
                 if skipped:
                     st.warning(f"Skipped (already exists): {', '.join(skipped)}")
-
-                # Clear form fields after successful addition
-                st.session_state["start_pallet"] = ""
-                st.session_state["num_pallets"] = 1
-                st.session_state["add_loc"] = "SGT"
-                st.session_state["add_stat"] = "Received At"
             except ValueError:
                 st.error("Invalid pallet number format. Must end with digits (e.g., P001).")
 
-# -------- Update Data --------
+# -------- Update Pallets Section --------
 with st.expander("🔄 Update Multiple Pallets"):
-    start_pallet = st.text_input("Enter Starting Pallet No (e.g., P001)", key="start_pallet")
+    start_pallet = st.text_input("Enter Starting Pallet No to Update (e.g., P010)", key="update_start")
     num_pallets = st.number_input("How many pallets to update?", min_value=1, step=1, key="update_count")
     new_location = st.selectbox("New Location", ["SGT", "DKP", "OFC", "End Customer"], key="update_loc")
     new_status = st.selectbox("New Status", ["Received At", "In Transit To", "Delivered", "Discarded"], key="update_stat")
@@ -151,11 +138,9 @@ with st.expander("🔄 Update Multiple Pallets"):
     if st.button("Update Pallets"):
         prefix = ''.join(filter(str.isalpha, start_pallet))
         number = ''.join(filter(str.isdigit, start_pallet))
-
         try:
             number = int(number)
-            updated = []
-            not_found = []
+            updated, not_found = [], []
 
             for i in range(num_pallets):
                 pallet_id = f"{prefix}{str(number + i).zfill(len(str(number)))}"
@@ -170,23 +155,20 @@ with st.expander("🔄 Update Multiple Pallets"):
             st.success(f"Updated: {', '.join(updated)}")
             if not_found:
                 st.warning(f"Not Found: {', '.join(not_found)}")
-
         except ValueError:
             st.error("Invalid starting pallet number format.")
 
-# -------- Discard Data --------
+# -------- Discard Section --------
 with st.expander("🗑️ Discard Multiple Pallets"):
-    start_pallet = st.text_input("Enter Starting Pallet No (e.g., P001)", key="start_pallet")
+    start_pallet = st.text_input("Enter Starting Pallet No to Discard (e.g., P050)", key="discard_start")
     num_pallets = st.number_input("How many pallets to discard?", min_value=1, step=1, key="discard_count")
 
     if st.button("Discard Pallets"):
         prefix = ''.join(filter(str.isalpha, start_pallet))
         number = ''.join(filter(str.isdigit, start_pallet))
-
         try:
             number = int(number)
-            discarded = []
-            not_found = []
+            discarded, not_found = [], []
 
             for i in range(num_pallets):
                 pallet_id = f"{prefix}{str(number + i).zfill(len(str(number)))}"
@@ -201,17 +183,16 @@ with st.expander("🗑️ Discard Multiple Pallets"):
             st.success(f"Discarded: {', '.join(discarded)}")
             if not_found:
                 st.warning(f"Not Found: {', '.join(not_found)}")
-
         except ValueError:
             st.error("Invalid starting pallet number format.")
 
-# -------- View All Pallets --------
+# -------- View Pallets --------
 with st.expander("📋 View All Pallets"):
     st.dataframe(pallets)
 
 # -------- Search Pallet --------
 with st.expander("🔍 Search Pallet"):
-    pallet_no = st.text_input("Enter Pallet Number to Search")
+    pallet_no = st.text_input("Enter Pallet Number to Search", key="search_pallet")
     if st.button("Search Pallet"):
         found = pallets[pallets["Pallet_No"] == pallet_no]
         if not found.empty:
@@ -219,9 +200,31 @@ with st.expander("🔍 Search Pallet"):
         else:
             st.error(f"Pallet {pallet_no} not found!")
 
-# -------- Show Pallet Status --------
+# -------- Visualization --------
 with st.expander("📍 Show Pallet Status"):
-    st.subheader("📊 Pallet Status Distribution")
-    status_count = pallets["Status"].value_counts()
-    fig = px.pie(status_count, names=status_count.index, values=status_count.values, title="Pallet Status Distribution")
-    st.plotly_chart(fig)
+    st.subheader("📊 Pallet Distribution by Location and Status")
+    loc_status_counts = pallets.groupby(['Location', 'Status']).size().reset_index(name='Count')
+    fig = px.bar(
+        loc_status_counts,
+        x="Location",
+        y="Count",
+        color="Status",
+        barmode="group",
+        text="Count"
+    )
+    fig.update_layout(title="Live Pallet Status by Location")
+    st.plotly_chart(fig, use_container_width=True)
+
+# -------- Export Section --------
+with st.expander("💾 Export to Excel"):
+    export_path = st.text_input("Enter file path to save (e.g., output.xlsx)", key="export_path")
+    if st.button("Export to Excel"):
+        if export_path:
+            try:
+                pallets.to_excel(export_path, index=False)
+                st.success(f"Data exported to {export_path}")
+            except Exception as e:
+                st.error(f"Failed to export: {e}")
+                logging.error(f"Export failed: {e}")
+        else:
+            st.warning("Please enter a valid file path.")
